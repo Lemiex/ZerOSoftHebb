@@ -2,17 +2,18 @@ import argparse
 import os.path as op
 import json
 import random
-from math import e
+from math import e, ceil, log2
+from scipy.linalg import hadamard
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 
 username = op.expanduser('~').split('/')[-1]
-data_candidate = ('/scratch' if 'hrodriguez' == username else '/home') + f'/{username}/workspace'
-DATA = '/h/u4/c1/00/xusarah2/413/SoftHebb-Results'
-# DATA = op.realpath(op.expanduser(data_candidate))
+curr_dir = os.getcwd() 
+DATA = op.realpath(curr_dir + '/Results')
 RESULT = op.join(DATA, 'results', 'hebb', 'result')  # everything from multi_layer.py
 SEARCH = op.join(DATA, 'results', 'hebb', 'search')  # everything from ray_search
 DATASET = op.join(DATA, 'data')
@@ -225,66 +226,7 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-import math
-import torch
-from scipy.linalg import hadamard
-import itertools
-
-def zero_init_on_tensor(shape):
-    """
-    Implements ZerO weight initialization on a tensor of arbitrary shape.
-    
-    Parameters:
-    - shape: tuple, shape of the tensor to initialize.
-    
-    Returns:
-    - init_tensor: Tensor, initialized using the ZerO method for 2D slices,
-                   and zeros or ones for higher dimensions.
-    """
-    print(f'Shape {shape}')
-    # Handle 2D case directly
-    if len(shape) == 2:
-        m, n = shape
-        return zero_init_matrix(m, n)
-    
-    # For higher dimensions, apply 2D initialization on last two dimensions
-    # and fill the rest with zeros or ones
-    init_tensor = torch.zeros(shape)
-    indices = [range(s) for s in shape[:-2]]
-    for index in itertools.product(*indices):
-        m, n = shape[-2], shape[-1]
-        init_matrix = zero_init_matrix(m, n)
-        init_tensor[index] = init_matrix
-    
-    return init_tensor
-
-def zero_init_matrix(m, n):
-    """
-    ZerO weight initialization for a 2D matrix.
-    """
-    # if m <= n: # partial identity matrix cause dimensional-decreasing
-    #     init_matrix = torch.eye(m, n)
-    # else: # dimensional-increasing
-    clog_m = math.ceil(math.log2(m))
-    p = 2 ** clog_m
-    H = torch.tensor(hadamard(p)).float()
-    init_matrix = torch.eye(m, p) @ (H / (2 ** (clog_m / 2))) @ torch.eye(p, n)
-    return init_matrix
-
-def random_ZerO(shape):
-    """
-    Returns a torch tensor filled with 0s and 1s randomly distributed.
-    
-    Parameters:
-    - shape: tuple, the shape of the tensor to be generated.
-    
-    Returns:
-    - A torch tensor of the specified shape with 0s and 1s.
-    """
-    return torch.randint(low=0, high=2, size=shape).float() 
-
-
-def init_weight(shape, weight_distribution, weight_range, weight_offset=0):
+def original_init_weight(shape, weight_distribution, weight_range, weight_offset=0):
     """
     Weight initialization from a distribution
     Parameters
@@ -302,17 +244,86 @@ def init_weight(shape, weight_distribution, weight_range, weight_offset=0):
     -------
         weight: Tensor
     """
-    # if weight_distribution == 'positive':
-    #     return weight_range * torch.rand(shape) + weight_offset
-    # elif weight_distribution == 'negative':
-    #     return -weight_range * torch.rand(shape) + weight_offset
-    # elif weight_distribution == 'zero_mean':
-    #     return 2 * torch.rand(shape) + weight_offset
-    # elif weight_distribution == 'normal':
-    #     return weight_range * torch.randn(shape) + weight_offset
-    # elif weight_distribution == 'ZerO':
-    #     return weight_range * zero_init_on_tensor(shape) + weight_offset
-    return zero_init_on_tensor(shape)
+    if weight_distribution == 'positive':
+        return weight_range * torch.rand(shape) + weight_offset
+    elif weight_distribution == 'negative':
+        return -weight_range * torch.rand(shape) + weight_offset
+    elif weight_distribution == 'zero_mean':
+        return 2 * torch.rand(shape) + weight_offset
+    elif weight_distribution == 'normal':
+        return weight_range * torch.randn(shape) + weight_offset
+
+# Initializing Weights using ZerO Initialization: Page 7 of (https://arxiv.org/pdf/2110.12661.pdf)
+def init_weight(shape, weight_distribution, weight_range, weight_offset=0):
+    if len(shape) == 2:
+        res = zero_algorithm(shape)
+    elif len(shape) == 4:
+        cout = shape[0]
+        cin = shape[1]
+        k = shape[2]
+
+        res = zero_conv_algorithm(cout, cin, k)
+
+    return res
+    
+def zero_algorithm(shape):
+    # Algorithm 1
+    m = shape[0]
+    n = shape[1]
+    
+    if m <= n:
+        init_matrix = torch.nn.init.eye_(torch.empty(m, n))
+    elif m > n:
+        clog_m = ceil(log2(m))
+        p = 2**(clog_m)
+        init_matrix = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
+    
+    return init_matrix
+
+def zero_conv_algorithm(cout, cin, k):
+    # Algorithm 2
+    K = torch.zeros(cout, cin, k, k)
+    n = k // 2
+    
+    if cout == cin:
+        K[:, :, n, n] = torch.eye(cout)
+    elif cout < cin:
+        K[:, :, n, n] = partial_identity(cout, cin)
+    else:
+        max_dim = max(cout, cin)
+        m = ceil(log2(max_dim))
+        H = torch.tensor(hadamard(2**m)) / 2**(m/2)
+        I_cout = partial_identity(cout, 2**m)
+        I_cin = partial_identity(2**m, cin)
+        c = 2 ** (-(m-1)/2)
+        
+        K[:, :, n, n] = c * (I_cout @ H @ I_cin)
+
+    return K
+
+def partial_identity(rows, cols):
+    # Definition 1
+    min_dim = min(rows, cols)
+    I = torch.eye(min_dim)
+    if rows < cols:
+        zeros = torch.zeros(min_dim, cols - min_dim)
+        return torch.cat((I, zeros), dim=1)
+    elif rows > cols:
+        zeros = torch.zeros(rows - min_dim, min_dim)
+        return torch.cat((I, zeros), dim=0)
+    return I
+
+def random_ZerO(shape):
+    """
+    Returns a torch tensor filled with 0s and 1s randomly distributed.
+    
+    Parameters:
+    - shape: tuple, the shape of the tensor to be generated.
+    
+    Returns:
+    - A torch tensor of the specified shape with 0s and 1s.
+    """
+    return torch.randint(low=0, high=2, size=shape).float() 
 
 def double_factorial(x):
     if x <= 2:
