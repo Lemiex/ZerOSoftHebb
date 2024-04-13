@@ -9,7 +9,7 @@ from train import run_sup, run_unsup, check_dimension, training_config, run_hybr
 from log import Log
 import ray
 from ray import tune
-from ray.tune.suggest.basic_variant import BasicVariantGenerator
+from ray.tune.search.basic_variant import BasicVariantGenerator
 from ray.tune import CLIReporter
 from functools import partial
 import warnings
@@ -175,10 +175,10 @@ def main(params, dataset_sup_config, dataset_unsup_config, blocks, config):
                 device,
                 log.unsup[id],
                 blocks=config['blocks'],
-                report=tune.report,
+                report=ray.train.report,
                 save=params.save_model,
                 reset=False,
-                model_dir=tune.session.get_trial_dir(),
+                model_dir=ray.train.get_context().get_trial_dir(),
             )
         elif config['mode'] == 'supervised':
             print('Running supervised')
@@ -193,9 +193,9 @@ def main(params, dataset_sup_config, dataset_unsup_config, blocks, config):
                 device,
                 log.sup[id],
                 blocks=config['blocks'],
-                report=tune.report,
+                report=ray.train.report,
                 save=params.save_model,
-                model_dir=tune.session.get_trial_dir(),
+                model_dir=ray.train.get_context().get_trial_dir(),
             )
         else:
             run_hybrid(
@@ -209,9 +209,9 @@ def main(params, dataset_sup_config, dataset_unsup_config, blocks, config):
                 device,
                 log.sup[id],
                 blocks=config['blocks'],
-                report=tune.report,
+                report=ray.train.report,
                 save=params.save_model,
-                model_dir=tune.session.get_trial_dir(),
+                model_dir=ray.train.get_context().get_trial_dir(),
             )
 
 

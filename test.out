@@ -1,0 +1,4 @@
+2024-04-12 17:22:26,053	INFO worker.py:1743 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8266 [39m[22m
+2024-04-12 17:22:27,368	INFO tune.py:263 -- Initializing Ray automatically. For cluster usage or custom Ray initialization, call `ray.init(...)` before `tune.run(...)`.
+2024-04-12 17:22:27,370	INFO tune.py:622 -- [output] This will use the new output engine with verbosity 2. To disable the new output and use the legacy output engine, set the environment variable RAY_AIR_NEW_OUTPUT=0. For more information, please see https://github.com/ray-project/ray/issues/36949
+2024-04-12 17:22:27,841	WARNING tune.py:912 -- AIR_VERBOSITY is set, ignoring passed-in ProgressReporter for now.
