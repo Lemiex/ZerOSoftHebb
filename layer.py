@@ -14,6 +14,7 @@ from hebbconv import select_Conv2d_layer
 from activation import get_activation
 import os.path as op
 import einops
+from utils import init_weight
 
 
 class AttDropout(nn.Dropout):
@@ -76,6 +77,35 @@ class batchstd1d(nn.Module):
             self.multiplier
         )
 '''
+
+#### Sarah Xu, April 16, 2024
+class ZerOLinear(nn.Linear):
+    r"""
+    Inheriting from nn.Linear, overwriting the reset_parameters() function so that
+    linear MLP layers can be ZerO-initialized
+    """
+    __constants__ = ['in_features', 'out_features']
+    in_features: int
+    out_features: int
+    weight: Tensor
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = True,
+                 device=None, dtype=None) -> None:
+        super().__init__(in_features, out_features)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        # ZerO init parameters
+        print("### Setting MLP Layer Weights ###")
+        shape = self.weight.data.shape
+        print(shape) # torch.Size([10, 13824])
+        self.weight.data = init_weight(shape)
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.linear(input, self.weight, self.bias)
+
+    def extra_repr(self) -> str:
+        return f'in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}'
 
 
 class BasicBlock(nn.Module):
@@ -275,7 +305,8 @@ def generate_block(params) -> BasicBlock:
         if config['hebbian']:
             layer = select_linear_layer(config)
         else:
-            layer = nn.Linear(config['in_channels'], config['out_channels'])
+            # Initializes layer using default pytorch Linear() module
+            layer = ZerOLinear(config['in_channels'], config['out_channels'])
         if 'batch_norm' in params and params['batch_norm']:
             batch_norm = nn.BatchNorm1d(config['out_channels'], affine=False)
 
@@ -283,6 +314,7 @@ def generate_block(params) -> BasicBlock:
         if config['hebbian']:
             layer = select_Conv2d_layer(config)
         else:
+            # If CNN & not hebbian, use default pytroch Conv2d Module
             layer = nn.Conv2d(
                 config['in_channels'],
                 config['out_channels'],
