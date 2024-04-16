@@ -11,13 +11,14 @@ import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 
+import global_var
+
 username = op.expanduser('~').split('/')[-1]
 curr_dir = os.getcwd() 
 DATA = op.realpath(curr_dir + '/Results')
 RESULT = op.join(DATA, 'results', 'hebb', 'result')  # everything from multi_layer.py
 SEARCH = op.join(DATA, 'results', 'hebb', 'search')  # everything from ray_search
 DATASET = op.join(DATA, 'data')
-
 
 def get_folder_name(params):
     """
@@ -253,20 +254,37 @@ def original_init_weight(shape, weight_distribution, weight_range, weight_offset
     elif weight_distribution == 'normal':
         return weight_range * torch.randn(shape) + weight_offset
 
+# ABLATION TEST: Only applying ZerO on the MLP layer
+def init_weight(shape, weight_distribution='null', weight_range=0, weight_offset=0):
+    global_var.zero_layer += 1
+    print(f'------------------------------- Shape {shape}, Layer# {global_var.zero_layer} -------------------------------')
+    if len(shape) == 2:
+        res = zero_algorithm(shape)
+        print("--------------- MLP Layer: Applying ZerO ---------------")
+    elif len(shape) == 4:
+        print(f'--------------- CONV Layer\'s Shape {shape}, Layer # {global_var.zero_layer} ---------------')
+        # if global_var.zero_layer == 2 or global_var.zero_layer == 0:
+        res = zero_init_weight(shape)
+        # else:
+        #     res = original_init_weight(shape, weight_distribution, weight_range, weight_offset)
+
+    return res
+
 # Initializing Weights using ZerO Initialization: Page 7 of (https://arxiv.org/pdf/2110.12661.pdf)
-def init_weight(shape, weight_distribution, weight_range, weight_offset=0):
+def zero_init_weight(shape):
     if len(shape) == 2:
         res = zero_algorithm(shape)
     elif len(shape) == 4:
         cout = shape[0]
         cin = shape[1]
         k = shape[2]
-
         res = zero_conv_algorithm(cout, cin, k)
 
     return res
+
     
 def zero_algorithm(shape):
+    print("------------ Applying ZerO Algo 1 -----------------")
     # Algorithm 1
     m = shape[0]
     n = shape[1]
@@ -281,6 +299,7 @@ def zero_algorithm(shape):
     return init_matrix
 
 def zero_conv_algorithm(cout, cin, k):
+    print("------------ Applying ZerO Algo 2 -----------------")
     # Algorithm 2
     K = torch.zeros(cout, cin, k, k)
     n = k // 2
