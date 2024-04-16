@@ -258,8 +258,11 @@ def original_init_weight(shape, weight_distribution, weight_range, weight_offset
 def init_weight(shape, weight_distribution=None, weight_range=0, weight_offset=0):
     global_var.zero_layer += 1
     print(f'----------------------------- Shape {shape}, Layer# {global_var.zero_layer} -------------------------')
-    # if global_var.zero_layer == 2 or global_var.zero_layer == 0:
     res = zero_init_weight(shape)
+    
+    ## For ablation testing
+    # if global_var.zero_layer == 3:
+    #     res = zero_init_weight(shape)
     # else:
     #     res = original_init_weight(shape, weight_distribution, weight_range, weight_offset)
 
@@ -284,14 +287,12 @@ def zero_algorithm1(shape):
     n = shape[1]
     
     if m <= n:
+        # MLP layer is 10 x 13824 so it always enters this branch
         init_matrix = torch.nn.init.eye_(torch.empty(m, n))
     elif m > n:
         clog_m = ceil(log2(m))
         p = 2**(clog_m)
         init_matrix = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
-
-    # Replace all 0s with 1e-9 to avoid division by 0 error
-    init_matrix[init_matrix == 0] = 1e-9
 
     return init_matrix
 
