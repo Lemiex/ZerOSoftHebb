@@ -51,6 +51,9 @@ To cite this work please use the following citations:
     # Install and activate base anaconda environment
     conda env create -n softhebb -f environment_pytorch==1.7.1.yml
     conda activate softhebb
+    pip install -U ray
+    pip install "ray[train]"
+
 
     # Train a ConvNet using SoftHebb and evaluate with a linear classifier, on CIFAR10
     python demo.py
