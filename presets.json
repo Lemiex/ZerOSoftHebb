@@ -3,7 +3,7 @@
     "2SoftHebbZerOCIFAR10": {
       "b0": {
         "arch": "CNN",
-        "preset": "softkrotov-c256-k5-p2-s1-d1-b0-t1-lr0.09-lp0.5-e0",
+        "preset": "softkrotov-c128-k3-p2-s1-d1-b0-t1-lr0.07-lp0.4-e0",
         "operation": "batchnorm2d",
         "num": 0,
         "batch_norm": false,

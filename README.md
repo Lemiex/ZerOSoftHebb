@@ -1,3 +1,39 @@
+# CSC413: Empirical Study on Biologically Plausible Initialization: ZerO Initialization With Multilayer SoftHebb
+
+This repository is a modification of the SoftHebb implementation by [this ICLR 2023 paper](https://openreview.net/forum?id=8gd4M-_Rj1) that uses [ZerO Initialization](https://arxiv.org/abs/2110.12661).
+
+Files modified for the project:
+1. utils.py: Implementation of ZerO Initialization 
+2. presets.json: Preset models including models tuned for ZerO
+3. ray_search.py: For debugging purposes
+4. train.py: For debugging purposes
+
+## Quick start 
+    conda env create -n softhebb -f environment_pytorch==1.7.1.yml
+    conda activate softhebb
+    pip install -U ray
+    pip install "ray[train]"
+
+
+    # Train a ConvNet using SoftHebb and evaluate with a linear classifier, on CIFAR10
+    python demo.py
+
+## Running experiments for CIFAR10 & MNIST
+```
+# CIFAR10
+python ray_search.py --preset <model> --dataset-unsup CIFAR10_1 --dataset-sup CIFAR10_50
+
+# MNIST
+python ray_search.py --preset <model> --dataset-unsup MNIST_1-32 --dataset-sup MNIST_10
+```
+`<model>` is a preset model from `presets.json`. For example, `2SoftHebbZerOMNIST` or `4SoftHebbCnnCIFAR`.
+
+
+NOTE: You may receive slightly differing results based on your dependency versions and compute resource.
+
+-----
+**Below is the README of the [primary SoftHebb code](https://github.com/NeuromorphicComputing/SoftHebb).**
+
 # SoftHebb
 _This open source project is not an official Huawei product. Huawei is not expected to provide support for this project._
 ### Hebbian Deep Learning Without Feedback (ICLR 2023)
@@ -51,9 +87,6 @@ To cite this work please use the following citations:
     # Install and activate base anaconda environment
     conda env create -n softhebb -f environment_pytorch==1.7.1.yml
     conda activate softhebb
-    pip install -U ray
-    pip install "ray[train]"
-
 
     # Train a ConvNet using SoftHebb and evaluate with a linear classifier, on CIFAR10
     python demo.py
