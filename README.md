@@ -1,4 +1,4 @@
-# CSC413: Empirical Study on Biologically Plausible Initialization: ZerO Initialization With Multilayer SoftHebb
+# Empirical Study on Biologically Plausible Initialization: ZerO Initialization With Multilayer SoftHebb
 
 This repository is a modification of the SoftHebb implementation by [this ICLR 2023 paper](https://openreview.net/forum?id=8gd4M-_Rj1) that uses [ZerO Initialization](https://arxiv.org/abs/2110.12661).
 
